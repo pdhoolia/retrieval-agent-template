@@ -1,7 +1,7 @@
 """Manage the configuration of various retrievers.
 
 This module provides functionality to create and manage retrievers for different
-vector store backends, specifically Elasticsearch, Pinecone, and MongoDB.
+vector store backends, specifically Elasticsearch, Pinecone, MongoDB, and Milvus Lite.
 
 The retrievers support filtering results by user_id to ensure data isolation between users.
 """
@@ -105,6 +105,22 @@ def make_mongodb_retriever(
 
 
 @contextmanager
+def make_milvus_retriever(
+    configuration: IndexConfiguration, embedding_model: Embeddings
+) -> Generator[VectorStoreRetriever, None, None]:
+    """Configure this agent to use milvus lite file based uri to store the vector index."""
+    from langchain_milvus.vectorstores import Milvus
+
+    vstore = Milvus (
+        embedding_function=embedding_model,
+        collection_name=configuration.user_id,
+        connection_args={"uri": os.environ["MILVUS_DB"]},
+        auto_id=True
+    )
+    yield vstore.as_retriever()
+
+
+@contextmanager
 def make_retriever(
     config: RunnableConfig,
 ) -> Generator[VectorStoreRetriever, None, None]:
@@ -125,6 +141,10 @@ def make_retriever(
 
         case "mongodb":
             with make_mongodb_retriever(configuration, embedding_model) as retriever:
+                yield retriever
+
+        case "milvus":
+            with make_milvus_retriever(configuration, embedding_model) as retriever:
                 yield retriever
 
         case _:

@@ -25,19 +25,19 @@ class IndexConfiguration:
         str,
         {"__template_metadata__": {"kind": "embeddings"}},
     ] = field(
-        default="openai/text-embedding-3-small",
+        default="openai/text-embedding-3-large",
         metadata={
             "description": "Name of the embedding model to use. Must be a valid embedding model name."
         },
     )
 
     retriever_provider: Annotated[
-        Literal["elastic", "elastic-local", "pinecone", "mongodb"],
+        Literal["elastic", "elastic-local", "pinecone", "mongodb", "milvus"],
         {"__template_metadata__": {"kind": "retriever"}},
     ] = field(
-        default="elastic",
+        default="milvus",
         metadata={
-            "description": "The vector store provider to use for retrieval. Options are 'elastic', 'pinecone', or 'mongodb'."
+            "description": "The vector store provider to use for retrieval. Options are 'elastic', 'pinecone', 'mongodb', or, 'milvus'."
         },
     )
 
@@ -45,6 +45,20 @@ class IndexConfiguration:
         default_factory=dict,
         metadata={
             "description": "Additional keyword arguments to pass to the search function of the retriever."
+        },
+    )
+
+    starter_urls: str = field(
+        default="https://zohlar.com",
+        metadata={
+            "description": "Comma-separated string of starter URLs to crawl for indexing web pages."
+        },
+    )
+
+    hops: int = field(
+        default=2,
+        metadata={
+            "description": "Maximum number of hops to traverse pages linked to the starter URLs."
         },
     )
 
@@ -66,6 +80,14 @@ class IndexConfiguration:
         _fields = {f.name for f in fields(cls) if f.init}
         return cls(**{k: v for k, v in configurable.items() if k in _fields})
 
+    def parse_starter_urls(self) -> list[str]:
+        """Parse the starter URLs into a list.
+
+        Returns:
+            list[str]: A list of URLs parsed from the comma-separated string.
+        """
+        return [url.strip() for url in self.starter_urls.split(",") if url.strip()]
+
 
 T = TypeVar("T", bound=IndexConfiguration)
 
@@ -80,7 +102,7 @@ class Configuration(IndexConfiguration):
     )
 
     response_model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
-        default="anthropic/claude-3-5-sonnet-20240620",
+        default="openai/gpt-4o",
         metadata={
             "description": "The language model used for generating responses. Should be in the form: provider/model-name."
         },
@@ -94,7 +116,7 @@ class Configuration(IndexConfiguration):
     )
 
     query_model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
-        default="anthropic/claude-3-haiku-20240307",
+        default="openai/gpt-4o",
         metadata={
             "description": "The language model used for processing and refining queries. Should be in the form: provider/model-name."
         },

@@ -38,19 +38,22 @@ def reduce_docs(
         Sequence[str],
         str,
         Literal["delete"],
+        Literal["crawl"],
     ],
 ) -> Sequence[Document]:
     """Reduce and process documents based on the input type.
 
     This function handles various input types and converts them into a sequence of Document objects.
-    It can delete existing documents, create new ones from strings or dictionaries, or return the existing documents.
+    It can crawl new documents, delete existing ones, or create new documents from strings or dictionaries, or return the existing documents.
 
     Args:
         existing (Optional[Sequence[Document]]): The existing docs in the state, if any.
-        new (Union[Sequence[Document], Sequence[dict[str, Any]], Sequence[str], str, Literal["delete"]]):
+        new (Union[Sequence[Document], Sequence[dict[str, Any]], Sequence[str], str, Literal["delete"], Literal["crawl"]]):
             The new input to process. Can be a sequence of Documents, dictionaries, strings, a single string,
-            or the literal "delete".
+            or the literals "delete", or "crawl".
     """
+    if new == "crawl":
+        return []
     if new == "delete":
         return []
     if isinstance(new, str):

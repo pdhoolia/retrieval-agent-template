@@ -6,7 +6,10 @@ from langchain_core.documents import Document
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph
 
+from urllib.parse import urlparse
+
 from retrieval_graph import retrieval
+from retrieval_graph.crawler import WebCrawler
 from retrieval_graph.configuration import IndexConfiguration
 from retrieval_graph.state import IndexState
 
@@ -30,6 +33,18 @@ def ensure_docs_have_user_id(
         for doc in docs
     ]
 
+def get_file_content(file_path: str) -> str:
+    with open(file_path, 'r', encoding='utf-8') as file:
+        return file.read()
+    
+async def crawl(tenant: str, starter_urls: list, hops: int):
+    allowed_domains = set(urlparse(url).netloc for url in starter_urls)
+    crawler = WebCrawler(starter_urls, hops, allowed_domains, tenant)
+    await crawler.crawl()
+    return [
+        Document(page_content=get_file_content(page["local_filepath"]), metadata={"url": page["url"]})
+        for page in crawler.crawled_pages
+    ]
 
 async def index_docs(
     state: IndexState, *, config: Optional[RunnableConfig] = None
@@ -38,7 +53,8 @@ async def index_docs(
 
     This function takes the documents from the state, ensures they have a user ID,
     adds them to the retriever's index, and then signals for the documents to be
-    deleted from the state.
+    deleted from the state. In addition if the user has provided a list of URLs to crawl,
+    the function will crawl the URLs and index the crawled documents.
 
     Args:
         state (IndexState): The current state containing documents and retriever.
@@ -47,9 +63,19 @@ async def index_docs(
     if not config:
         raise ValueError("Configuration required to run index_docs.")
     with retrieval.make_retriever(config) as retriever:
+        configuration = IndexConfiguration.from_runnable_config(config)
+        if not state.docs and configuration.starter_urls:
+            print(f"starting crawl ...")
+            state.docs = await crawl (
+                configuration.user_id,
+                configuration.parse_starter_urls(),
+                configuration.hops
+            )
         stamped_docs = ensure_docs_have_user_id(state.docs, config)
-
-        await retriever.aadd_documents(stamped_docs)
+        if configuration.retriever_provider == "milvus":
+            retriever.add_documents(stamped_docs)
+        else:
+            await retriever.aadd_documents(stamped_docs)
     return {"docs": "delete"}
 
 
