@@ -183,3 +183,10 @@ def reduce_docs(
 
 With this enhancement, the user may just set `docs` to `"crawl"` as follows:
 ![User triggers crawl](./static/trigger_crawl.png)
+
+Here's a usage video of enhanced retrieval template!
+
+
+https://github.com/user-attachments/assets/88839a0d-5582-4548-80a3-fd877d344471
+
+
