@@ -1,10 +1,25 @@
 # Enhancements
 
 Extend LangGraph's retrieval agent template:
-1. **Crawl** from **starter_urls** list within a certain nmumber of **hops** to build vector index
+1. **Crawl** from **starter_urls** list within a certain number of **hops** to build vector index
 2. Add support for Milvus lite
 
 ![Enhanced configurations LangGraph studio UI](./static/index_graph_enh.png)
+
+
+## Create a new project using langGraph's retrieval agent template
+
+Install the LangGraph CLI
+
+```bash
+pip install langgraph-cli --upgrade
+```
+
+Create a new app from a template
+```bash
+langgraph new
+```
+![Create new langraph app using retrieval agent template](./static/create-app-langgraph-template.png)
 
 
 ## Enhance the configurations
