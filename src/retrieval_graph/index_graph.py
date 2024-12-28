@@ -1,7 +1,10 @@
 """This "graph" simply exposes an endpoint for a user to upload docs to be indexed."""
+import json
 
 from typing import Optional, Sequence
 
+from langchain_community.utilities import ApifyWrapper
+from langchain_community.document_loaders import ApifyDatasetLoader
 from langchain_core.documents import Document
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph
@@ -37,6 +40,10 @@ def get_file_content(file_path: str) -> str:
     with open(file_path, 'r', encoding='utf-8') as file:
         return file.read()
     
+def load_site_dataset_map() -> dict:
+    with open("sites_dataset_map.json", 'r', encoding='utf-8') as file:
+        return json.load(file)
+    
 async def crawl(tenant: str, starter_urls: list, hops: int):
     allowed_domains = set(urlparse(url).netloc for url in starter_urls)
     crawler = WebCrawler(starter_urls, hops, allowed_domains, tenant)
@@ -45,6 +52,32 @@ async def crawl(tenant: str, starter_urls: list, hops: int):
         Document(page_content=get_file_content(page["local_filepath"]), metadata={"url": page["url"]})
         for page in crawler.crawled_pages
     ]
+
+def apify_crawl(tenant: str, starter_urls: list, hops: int):
+    site_dataset_map = load_site_dataset_map()
+    if dataset_id := site_dataset_map.get(tenant):
+        loader = ApifyDatasetLoader(
+            dataset_id=dataset_id,
+            dataset_mapping_function=lambda item: Document(
+                page_content=item["html"] or "", metadata={"url": item["url"]}
+            ),
+        )
+    else:
+        apify = ApifyWrapper()
+        loader = apify.call_actor(
+            actor_id="apify/website-content-crawler",
+            run_input={
+                "startUrls": [{"url": "https://zohlar.com"}],
+                "saveHtml": True,
+                "htmlTransformer": "none"
+            },
+            dataset_mapping_function=lambda item: Document(
+                page_content=item["html"] or "", metadata={"url": item["url"]}
+            ),
+        )
+        print(f"Site: {tenant} crawled and loaded into Apify dataset: {loader.dataset_id}")
+
+    return loader.load()
 
 async def index_docs(
     state: IndexState, *, config: Optional[RunnableConfig] = None
@@ -66,9 +99,14 @@ async def index_docs(
         configuration = IndexConfiguration.from_runnable_config(config)
         if not state.docs and configuration.starter_urls:
             print(f"starting crawl ...")
-            state.docs = await crawl (
+            # state.docs = await crawl (
+            #     configuration.user_id,
+            #     configuration.parse_starter_urls(),
+            #     configuration.hops
+            # )
+            state.docs = apify_crawl (
                 configuration.user_id,
-                configuration.parse_starter_urls(),
+                [{"url": url} for url in configuration.parse_starter_urls()],
                 configuration.hops
             )
         stamped_docs = ensure_docs_have_user_id(state.docs, config)

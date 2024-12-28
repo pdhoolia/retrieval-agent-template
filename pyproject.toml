@@ -9,6 +9,7 @@ license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
+    "apify-client",
     "langgraph>=0.2.6",
     "langchain-openai>=0.1.22",
     "langchain-anthropic>=0.1.23",
@@ -26,7 +27,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["mypy>=1.11.1", "ruff>=0.6.1"]
+dev = ["debugpy", "mypy>=1.11.1", "ruff>=0.6.1"]
 
 [build-system]
 requires = ["setuptools>=73.0.0", "wheel"]
